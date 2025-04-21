@@ -39,11 +39,11 @@ type AdditionalProperties struct {
 	// add additional fields
 }
 
-type FieldURI struct {
-	// List of possible values:
-	// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/fielduri
-	FieldURI string `xml:"FieldURI,attr,omitempty"`
-}
+//type FieldURI struct {
+//	// List of possible values:
+//	// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/fielduri
+//	FieldURI string `xml:"FieldURI,attr,omitempty"`
+//}
 
 type IndexedPageItemView struct {
 	MaxEntriesReturned int       `xml:"MaxEntriesReturned,attr,omitempty"`
@@ -76,7 +76,7 @@ type People struct {
 }
 
 // GetUserAvailability
-//https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/findpeople-operation
+// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/findpeople-operation
 func FindPeople(c Client, r *FindPeopleRequest) (*FindPeopleResponse, error) {
 
 	xmlBytes, err := xml.MarshalIndent(r, "", "  ")

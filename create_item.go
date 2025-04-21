@@ -3,7 +3,6 @@ package ews
 import (
 	"encoding/xml"
 	"errors"
-	"time"
 )
 
 type CreateItem struct {
@@ -23,33 +22,33 @@ type SavedItemFolderId struct {
 	DistinguishedFolderId DistinguishedFolderId `xml:"t:DistinguishedFolderId"`
 }
 
-type Message struct {
-	ItemClass    string     `xml:"t:ItemClass"`
-	Subject      string     `xml:"t:Subject"`
-	Body         Body       `xml:"t:Body"`
-	Sender       OneMailbox `xml:"t:Sender"`
-	ToRecipients XMailbox   `xml:"t:ToRecipients"`
-}
+//type Message struct {
+//	ItemClass    string     `xml:"t:ItemClass"`
+//	Subject      string     `xml:"t:Subject"`
+//	Body         Body       `xml:"t:Body"`
+//	Sender       OneMailbox `xml:"t:Sender"`
+//	ToRecipients XMailbox   `xml:"t:ToRecipients"`
+//}
 
-type CalendarItem struct {
-	Subject                    string      `xml:"t:Subject"`
-	Body                       Body        `xml:"t:Body"`
-	ReminderIsSet              bool        `xml:"t:ReminderIsSet"`
-	ReminderMinutesBeforeStart int         `xml:"t:ReminderMinutesBeforeStart"`
-	Start                      time.Time   `xml:"t:Start"`
-	End                        time.Time   `xml:"t:End"`
-	IsAllDayEvent              bool        `xml:"t:IsAllDayEvent"`
-	LegacyFreeBusyStatus       string      `xml:"t:LegacyFreeBusyStatus"`
-	Location                   string      `xml:"t:Location"`
-	RequiredAttendees          []Attendees `xml:"t:RequiredAttendees"`
-	OptionalAttendees          []Attendees `xml:"t:OptionalAttendees"`
-	Resources                  []Attendees `xml:"t:Resources"`
-}
+//type CalendarItem struct {
+//	Subject                    string      `xml:"t:Subject"`
+//	Body                       Body        `xml:"t:Body"`
+//	ReminderIsSet              bool        `xml:"t:ReminderIsSet"`
+//	ReminderMinutesBeforeStart int         `xml:"t:ReminderMinutesBeforeStart"`
+//	Start                      time.Time   `xml:"t:Start"`
+//	End                        time.Time   `xml:"t:End"`
+//	IsAllDayEvent              bool        `xml:"t:IsAllDayEvent"`
+//	LegacyFreeBusyStatus       string      `xml:"t:LegacyFreeBusyStatus"`
+//	Location                   string      `xml:"t:Location"`
+//	RequiredAttendees          []Attendees `xml:"t:RequiredAttendees"`
+//	OptionalAttendees          []Attendees `xml:"t:OptionalAttendees"`
+//	Resources                  []Attendees `xml:"t:Resources"`
+//}
 
-type Body struct {
-	BodyType string `xml:"BodyType,attr"`
-	Body     []byte `xml:",chardata"`
-}
+//type Body struct {
+//	BodyType string `xml:"BodyType,attr"`
+//	Body     []byte `xml:",chardata"`
+//}
 
 type OneMailbox struct {
 	Mailbox Mailbox `xml:"t:Mailbox"`

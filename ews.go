@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"github.com/Azure/go-ntlmssp"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+
+	"github.com/Azure/go-ntlmssp"
 )
 
 const (
