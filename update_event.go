@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+//const (
+//	ResponseClassSuccess = "Success"
+//	ResponseClassWarning = "Warning"
+//	ResponseClassError   = "Error"
+//)
+
 type UpdateItem struct {
 	XMLName                               xml.Name     `xml:"m:UpdateItem"`
 	Xmlns                                 string       `xml:"xmlns,attr"`
@@ -15,9 +21,40 @@ type UpdateItem struct {
 	ItemChanges                           []ItemChange `xml:"m:ItemChanges>t:ItemChange"`
 }
 
+type DeleteItem struct {
+	XMLName                  xml.Name `xml:"m:DeleteItem"`
+	Xmlns                    string   `xml:"xmlns:m,attr"`
+	DeleteType               string   `xml:"DeleteType,attr"`
+	SendMeetingCancellations string   `xml:"SendMeetingCancellations,attr"`
+	AffectedTaskOccurrences  string   `xml:"AffectedTaskOccurrences,attr"`
+	PerformReminderAction    bool     `xml:"PerformReminderAction,attr"`
+	ItemIds                  []ItemId `xml:"m:ItemIds>t:ItemId"`
+}
+type deleteItemResponseBodyEnvelop struct {
+	XMLName xml.Name                   `xml:"Envelope"`
+	Body    deleteItemResponseBodyBody `xml:"Body"`
+}
+
+type deleteItemResponseBodyBody struct {
+	DeleteItemResponse deleteItemResponse `xml:"DeleteItemResponse"`
+}
+
+type deleteItemResponse struct {
+	ResponseMessages deleteItemResponseMessages `xml:"ResponseMessages"`
+}
+
+type deleteItemResponseMessages struct {
+	DeleteItemResponseMessage responseMessage `xml:"DeleteItemResponseMessage"`
+}
+
+type responseMessage struct {
+	ResponseClass string `xml:"ResponseClass,attr"`
+	MessageText   string `xml:"MessageText"`
+}
+
 type ItemChange struct {
-	ItemId  ItemId       `xml:"t:ItemId"`
-	Updates []ItemUpdate `xml:"t:Updates"`
+	ItemId  ItemId         `xml:"t:ItemId"`
+	Updates []SetItemField `xml:"t:Updates>t:SetItemField"`
 }
 
 type ItemUpdate struct {
@@ -99,33 +136,25 @@ func UpdateEvent(c Client, itemID, changeKey, newBody string, newStart, newEnd t
 					Id:        itemID,
 					ChangeKey: changeKey,
 				},
-				Updates: []ItemUpdate{
-
+				Updates: []SetItemField{
 					{
-						SetItemField: &SetItemField{
-							FieldURI: FieldURI{FieldURI: "calendar:Start"},
-							CalendarItem: &CalendarItem{
-								Start: &newStart,
-							},
+						FieldURI: FieldURI{FieldURI: "calendar:Start"},
+						CalendarItem: &CalendarItem{
+							Start: &newStart,
 						},
 					},
 					{
-						SetItemField: &SetItemField{
-							FieldURI: FieldURI{FieldURI: "calendar:End"},
-							CalendarItem: &CalendarItem{
-								End: &newEnd,
-							},
+						FieldURI: FieldURI{FieldURI: "calendar:End"},
+						CalendarItem: &CalendarItem{
+							End: &newEnd,
 						},
 					},
 					{
-						SetItemField: &SetItemField{
-							FieldURI:     FieldURI{FieldURI: "item:Body"},
-							CalendarItem: nil,
-							Message: &Message{
-								Body: Body{
-									BodyType: "Text",
-									Value:    newBody,
-								},
+						FieldURI: FieldURI{FieldURI: "item:Body"},
+						Message: &Message{
+							Body: Body{
+								BodyType: "Text",
+								Value:    newBody,
 							},
 						},
 					},
@@ -145,4 +174,45 @@ func UpdateEvent(c Client, itemID, changeKey, newBody string, newStart, newEnd t
 	}
 
 	return checkUpdateItemResponseForErrors(resp)
+}
+
+func DeleteEvent(c Client, itemID, changeKey string) error {
+	deleteReq := &DeleteItem{
+		Xmlns:                    "http://schemas.microsoft.com/exchange/services/2006/messages",
+		DeleteType:               "HardDelete",
+		SendMeetingCancellations: "SendToNone",
+		AffectedTaskOccurrences:  "AllOccurrences",
+		PerformReminderAction:    false,
+		ItemIds: []ItemId{
+			{
+				Id:        itemID,
+				ChangeKey: changeKey,
+			},
+		},
+	}
+
+	xmlBytes, err := xml.MarshalIndent(deleteReq, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.SendAndReceive(xmlBytes)
+	if err != nil {
+		return err
+	}
+
+	return checkDeleteItemResponseForErrors(resp)
+}
+
+func checkDeleteItemResponseForErrors(bb []byte) error {
+	var soapResp deleteItemResponseBodyEnvelop
+	if err := xml.Unmarshal(bb, &soapResp); err != nil {
+		return err
+	}
+
+	resp := soapResp.Body.DeleteItemResponse.ResponseMessages.DeleteItemResponseMessage
+	if resp.ResponseClass == "Error" {
+		return errors.New(resp.MessageText)
+	}
+	return nil
 }
