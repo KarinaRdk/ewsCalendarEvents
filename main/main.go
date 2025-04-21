@@ -11,8 +11,8 @@ import (
 func main() {
 	c := ews.NewClient(
 		"https://mail.corp.rwb.ru/EWS/Exchange.asmx",
-		"rwb\\NN_0ki",
-		"90019767711917Lf*",
+		"rwb\\***",
+		"",
 		&ews.Config{Dump: true, NTLM: false},
 	)
 
