@@ -29,7 +29,7 @@ type SavedItemFolderId struct {
 //	Sender       OneMailbox `xml:"t:Sender"`
 //	ToRecipients XMailbox   `xml:"t:ToRecipients"`
 //}
-
+//
 //type CalendarItem struct {
 //	Subject                    string      `xml:"t:Subject"`
 //	Body                       Body        `xml:"t:Body"`

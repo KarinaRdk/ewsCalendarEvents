@@ -27,7 +27,8 @@ type ItemUpdate struct {
 
 type SetItemField struct {
 	FieldURI     FieldURI      `xml:"t:FieldURI"`
-	CalendarItem *CalendarItem `xml:"t:CalendarItem"`
+	CalendarItem *CalendarItem `xml:"t:CalendarItem,omitempty"`
+	Message      *Message      `xml:"t:Message,omitempty"`
 }
 
 type AppendToItemField struct {
@@ -40,8 +41,9 @@ type FieldURI struct {
 }
 
 type CalendarItem struct {
-	Start time.Time `xml:"t:Start,omitempty"`
-	End   time.Time `xml:"t:End,omitempty"`
+	XMLName xml.Name   `xml:"t:CalendarItem"`
+	Start   *time.Time `xml:"t:Start,omitempty"`
+	End     *time.Time `xml:"t:End,omitempty"`
 }
 
 type ItemId struct {
@@ -61,6 +63,7 @@ type Body struct {
 //	type Mailbox struct {
 //		EmailAddress string `xml:"t:EmailAddress"`
 //	}
+
 func checkUpdateItemResponseForErrors(resp []byte) error {
 	var soapResp struct {
 		Body struct {
@@ -83,6 +86,7 @@ func checkUpdateItemResponseForErrors(resp []byte) error {
 	}
 	return nil
 }
+
 func UpdateEvent(c Client, itemID, changeKey, newBody string, newStart, newEnd time.Time) error {
 	update := &UpdateItem{
 		Xmlns:                                 "http://schemas.microsoft.com/exchange/services/2006/messages",
@@ -96,26 +100,35 @@ func UpdateEvent(c Client, itemID, changeKey, newBody string, newStart, newEnd t
 					ChangeKey: changeKey,
 				},
 				Updates: []ItemUpdate{
+
 					{
-						AppendToItemField: &AppendToItemField{
-							FieldURI: FieldURI{FieldURI: "item:Body"},
-							Message: &Message{
-								Body: Body{BodyType: "Text", Value: newBody},
+						SetItemField: &SetItemField{
+							FieldURI: FieldURI{FieldURI: "calendar:Start"},
+							CalendarItem: &CalendarItem{
+								Start: &newStart,
 							},
 						},
 					},
-					//{
-					//	SetItemField: &SetItemField{
-					//		FieldURI:     FieldURI{FieldURI: "calendar:Start"},
-					//		CalendarItem: &CalendarItem{Start: newStart},
-					//	},
-					//},
-					//{
-					//	SetItemField: &SetItemField{
-					//		FieldURI:     FieldURI{FieldURI: "calendar:End"},
-					//		CalendarItem: &CalendarItem{End: newEnd},
-					//	},
-					//},
+					{
+						SetItemField: &SetItemField{
+							FieldURI: FieldURI{FieldURI: "calendar:End"},
+							CalendarItem: &CalendarItem{
+								End: &newEnd,
+							},
+						},
+					},
+					{
+						SetItemField: &SetItemField{
+							FieldURI:     FieldURI{FieldURI: "item:Body"},
+							CalendarItem: nil,
+							Message: &Message{
+								Body: Body{
+									BodyType: "Text",
+									Value:    newBody,
+								},
+							},
+						},
+					},
 				},
 			},
 		},
