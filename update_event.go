@@ -3,13 +3,8 @@ package ews
 import (
 	"encoding/xml"
 	"errors"
+	"time"
 )
-
-//const (
-//	ResponseClassSuccess = "Success"
-//	ResponseClassWarning = "Warning"
-//	ResponseClassError   = "Error"
-//)
 
 type UpdateItem struct {
 	XMLName                               xml.Name     `xml:"m:UpdateItem"`
@@ -18,32 +13,6 @@ type UpdateItem struct {
 	ConflictResolution                    string       `xml:"ConflictResolution,attr"`
 	SendMeetingInvitationsOrCancellations string       `xml:"SendMeetingInvitationsOrCancellations,attr"`
 	ItemChanges                           []ItemChange `xml:"m:ItemChanges>t:ItemChange"`
-}
-
-type DeleteItem struct {
-	XMLName                  xml.Name `xml:"m:DeleteItem"`
-	Xmlns                    string   `xml:"xmlns:m,attr"`
-	DeleteType               string   `xml:"DeleteType,attr"`
-	SendMeetingCancellations string   `xml:"SendMeetingCancellations,attr"`
-	AffectedTaskOccurrences  string   `xml:"AffectedTaskOccurrences,attr"`
-	PerformReminderAction    bool     `xml:"PerformReminderAction,attr"`
-	ItemIds                  []ItemId `xml:"m:ItemIds>t:ItemId"`
-}
-type deleteItemResponseBodyEnvelop struct {
-	XMLName xml.Name                   `xml:"Envelope"`
-	Body    deleteItemResponseBodyBody `xml:"Body"`
-}
-
-type deleteItemResponseBodyBody struct {
-	DeleteItemResponse deleteItemResponse `xml:"DeleteItemResponse"`
-}
-
-type deleteItemResponse struct {
-	ResponseMessages deleteItemResponseMessages `xml:"ResponseMessages"`
-}
-
-type deleteItemResponseMessages struct {
-	DeleteItemResponseMessage responseMessage `xml:"DeleteItemResponseMessage"`
 }
 
 type responseMessage struct {
@@ -62,9 +31,9 @@ type ItemUpdate struct {
 }
 
 type SetItemField struct {
-	FieldURI     FieldURI      `xml:"t:FieldURI"`
-	CalendarItem *CalendarItem `xml:"t:CalendarItem,omitempty"`
-	Message      *Message      `xml:"t:Message,omitempty"`
+	FieldURI     FieldURI            `xml:"t:FieldURI"`
+	CalendarItem *UpdateCalendarItem `xml:"t:CalendarItem,omitempty"`
+	Message      *Message            `xml:"t:Message,omitempty"`
 }
 
 type AppendToItemField struct {
@@ -76,31 +45,84 @@ type FieldURI struct {
 	FieldURI string `xml:"FieldURI,attr"`
 }
 
-//type CalendarItem struct {
-//	XMLName xml.Name   `xml:"t:CalendarItem"`
-//	Start   *time.Time `xml:"t:Start,omitempty"`
-//	End     *time.Time `xml:"t:End,omitempty"`
-//}
+type UpdateCalendarItem struct {
+	XMLName xml.Name   `xml:"t:CalendarItem"`
+	Start   *time.Time `xml:"t:Start,omitempty"`
+	End     *time.Time `xml:"t:End,omitempty"`
+}
 
-//type ItemId struct {
-//	Id        string `xml:"Id,attr"`
-//	ChangeKey string `xml:"ChangeKey,attr"`
-//}
+// Update работает когда есть только body
+type Message struct {
+	Body Body `xml:"t:Body"`
+}
 
-//type Message struct {
-//	Body Body `xml:"t:Body"`
-//}
-//
-//type Body struct {
-//	BodyType string `xml:"BodyType,attr"`
-//	Value    string `xml:",chardata"`
-//}
+type Body struct {
+	BodyType string `xml:"BodyType,attr"`
+	Body     string `xml:",chardata"`
+}
 
-//	type Mailbox struct {
-//		EmailAddress string `xml:"t:EmailAddress"`
-//	}
+type Update struct {
+	ItemID    string
+	ChangeKey string
+	Subject   string
+	Body      string
+	Start     time.Time
+	End       time.Time
+}
 
-func checkUpdateItemResponseForErrors(resp []byte) error {
+func UpdateEvent(c Client, model Update) (string, string, error) {
+	update := &UpdateItem{
+		Xmlns:                                 "http://schemas.microsoft.com/exchange/services/2006/messages",
+		MessageDisposition:                    "SaveOnly",
+		ConflictResolution:                    "AutoResolve",
+		SendMeetingInvitationsOrCancellations: "SendToNone",
+		ItemChanges: []ItemChange{
+			{
+				ItemId: ItemId{
+					Id:        model.ItemID,
+					ChangeKey: model.ChangeKey,
+				},
+				Updates: []SetItemField{
+					{
+						FieldURI: FieldURI{FieldURI: "calendar:Start"},
+						CalendarItem: &UpdateCalendarItem{
+							Start: &model.Start,
+						},
+					},
+					{
+						FieldURI: FieldURI{FieldURI: "calendar:End"},
+						CalendarItem: &UpdateCalendarItem{
+							End: &model.End,
+						},
+					},
+					{
+						FieldURI: FieldURI{FieldURI: "item:Body"},
+						Message: &Message{
+							Body: Body{
+								BodyType: "Text",
+								Body:     model.Body,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	xmlBytes, err := xml.MarshalIndent(update, "", "  ")
+	if err != nil {
+		return "", "", err
+	}
+
+	resp, err := c.SendAndReceive(xmlBytes)
+	if err != nil {
+		return "", "", err
+	}
+
+	return parseUpdateItemResponse(resp)
+}
+
+func parseUpdateItemResponse(resp []byte) (string, string, error) {
 	var soapResp struct {
 		Body struct {
 			UpdateItemResponse struct {
@@ -108,110 +130,28 @@ func checkUpdateItemResponseForErrors(resp []byte) error {
 					ResponseMessage struct {
 						ResponseClass string `xml:"ResponseClass,attr"`
 						MessageText   string `xml:"MessageText"`
+						Items         struct {
+							CalendarItem []calendarItemResponse `xml:"CalendarItem"`
+						} `xml:"Items"`
 					} `xml:"UpdateItemResponseMessage"`
 				} `xml:"ResponseMessages"`
 			} `xml:"UpdateItemResponse"`
 		} `xml:"Body"`
 	}
+
 	if err := xml.Unmarshal(resp, &soapResp); err != nil {
-		return err
+		return "", "", err
 	}
+
 	r := soapResp.Body.UpdateItemResponse.ResponseMessages.ResponseMessage
 	if r.ResponseClass == "Error" {
-		return errors.New(r.MessageText)
-	}
-	return nil
-}
-
-//func UpdateEvent(c Client, itemID, changeKey, newBody string, newStart, newEnd time.Time) error {
-//	update := &UpdateItem{
-//		Xmlns:                                 "http://schemas.microsoft.com/exchange/services/2006/messages",
-//		MessageDisposition:                    "SaveOnly",
-//		ConflictResolution:                    "AutoResolve",
-//		SendMeetingInvitationsOrCancellations: "SendToNone",
-//		ItemChanges: []ItemChange{
-//			{
-//				ItemId: ItemId{
-//					Id:        itemID,
-//					ChangeKey: changeKey,
-//				},
-//				Updates: []SetItemField{
-//					{
-//						FieldURI: FieldURI{FieldURI: "calendar:Start"},
-//						CalendarItem: &CalendarItem{
-//							Start: &newStart,
-//						},
-//					},
-//					{
-//						FieldURI: FieldURI{FieldURI: "calendar:End"},
-//						CalendarItem: &CalendarItem{
-//							End: &newEnd,
-//						},
-//					},
-//					{
-//						FieldURI: FieldURI{FieldURI: "item:Body"},
-//						Message: &Message{
-//							Body: Body{
-//								BodyType: "Text",
-//								Value:    newBody,
-//							},
-//						},
-//					},
-//				},
-//			},
-//		},
-//	}
-//
-//	xmlBytes, err := xml.MarshalIndent(update, "", "  ")
-//	if err != nil {
-//		return err
-//	}
-//
-//	resp, err := c.SendAndReceive(xmlBytes)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return checkUpdateItemResponseForErrors(resp)
-//}
-
-func DeleteEvent(c Client, itemID, changeKey string) error {
-	deleteReq := &DeleteItem{
-		Xmlns:                    "http://schemas.microsoft.com/exchange/services/2006/messages",
-		DeleteType:               "HardDelete",
-		SendMeetingCancellations: "SendToNone",
-		AffectedTaskOccurrences:  "AllOccurrences",
-		PerformReminderAction:    false,
-		ItemIds: []ItemId{
-			{
-				Id:        itemID,
-				ChangeKey: changeKey,
-			},
-		},
+		return "", "", errors.New(r.MessageText)
 	}
 
-	xmlBytes, err := xml.MarshalIndent(deleteReq, "", "  ")
-	if err != nil {
-		return err
+	if len(r.Items.CalendarItem) == 0 {
+		return "", "", errors.New("no CalendarItem returned")
 	}
 
-	resp, err := c.SendAndReceive(xmlBytes)
-	if err != nil {
-		return err
-	}
-
-	return checkDeleteItemResponseForErrors(resp)
-}
-
-func checkDeleteItemResponseForErrors(bb []byte) error {
-	var soapResp deleteItemResponseBodyEnvelop
-	if err := xml.Unmarshal(bb, &soapResp); err != nil {
-		return err
-	}
-
-	resp := soapResp.Body.DeleteItemResponse.ResponseMessages.DeleteItemResponseMessage
-	if resp.ResponseClass == "Error" {
-		return errors.New(resp.MessageText)
-	}
-	return nil
+	item := r.Items.CalendarItem[0]
+	return item.ItemId.Id, item.ItemId.ChangeKey, nil
 }

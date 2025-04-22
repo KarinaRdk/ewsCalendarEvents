@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+const (
+	busyStatus  = "Busy"
+	typeText    = "Text"
+	sendAndSave = "SendToAllAndSaveCopy" //  necessary to see event in the calendar
+)
+
 type CreateItem struct {
 	XMLName                struct{}          `xml:"m:CreateItem"`
 	MessageDisposition     string            `xml:"MessageDisposition,attr"`
@@ -23,40 +29,21 @@ type SavedItemFolderId struct {
 	DistinguishedFolderId DistinguishedFolderId `xml:"t:DistinguishedFolderId"`
 }
 
-type Message struct {
-	ItemClass    string     `xml:"t:ItemClass"`
-	Subject      string     `xml:"t:Subject"`
-	Body         Body       `xml:"t:Body"`
-	Sender       OneMailbox `xml:"t:Sender"`
-	ToRecipients XMailbox   `xml:"t:ToRecipients"`
+// List of values:
+// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/distinguishedfolderid
+type DistinguishedFolderId struct {
+	Id string `xml:"Id,attr"`
 }
 
 type CalendarItem struct {
-	Subject                    string      `xml:"t:Subject"`
-	Body                       Body        `xml:"t:Body"`
-	ReminderIsSet              bool        `xml:"t:ReminderIsSet"`
-	ReminderMinutesBeforeStart int         `xml:"t:ReminderMinutesBeforeStart"`
-	Start                      time.Time   `xml:"t:Start"`
-	End                        time.Time   `xml:"t:End"`
-	IsAllDayEvent              bool        `xml:"t:IsAllDayEvent"`
-	LegacyFreeBusyStatus       string      `xml:"t:LegacyFreeBusyStatus"`
-	Location                   string      `xml:"t:Location"`
-	RequiredAttendees          []Attendees `xml:"t:RequiredAttendees"`
-	OptionalAttendees          []Attendees `xml:"t:OptionalAttendees"`
-	Resources                  []Attendees `xml:"t:Resources"`
-}
-
-type Body struct {
-	BodyType string `xml:"BodyType,attr"`
-	Body     []byte `xml:",chardata"`
-}
-
-type OneMailbox struct {
-	Mailbox Mailbox `xml:"t:Mailbox"`
-}
-
-type XMailbox struct {
-	Mailbox []Mailbox `xml:"t:Mailbox"`
+	Subject              string      `xml:"t:Subject"`
+	Body                 Body        `xml:"t:Body"`
+	Start                time.Time   `xml:"t:Start"`
+	End                  time.Time   `xml:"t:End"`
+	IsAllDayEvent        bool        `xml:"t:IsAllDayEvent"`
+	LegacyFreeBusyStatus string      `xml:"t:LegacyFreeBusyStatus"`
+	Location             string      `xml:"t:Location"`
+	RequiredAttendees    []Attendees `xml:"t:RequiredAttendees"`
 }
 
 type Mailbox struct {
@@ -106,38 +93,42 @@ type ItemId struct {
 	ChangeKey string `xml:"ChangeKey,attr"`
 }
 
-// CreateMessageItem
-// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/createitem-operation-email-message
-func CreateMessageItem(c Client, m ...Message) error {
-
-	item := &CreateItem{
-		MessageDisposition: "SendAndSaveCopy",
-		SavedItemFolderId:  SavedItemFolderId{DistinguishedFolderId{Id: "sentitems"}},
-	}
-	item.Items.Message = append(item.Items.Message, m...)
-
-	xmlBytes, err := xml.MarshalIndent(item, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	bb, err := c.SendAndReceive(xmlBytes)
-	if err != nil {
-		return err
-	}
-
-	if err := checkCreateItemResponseForErrors(bb); err != nil {
-		return err
-	}
-
-	return nil
+type Create struct {
+	User     string
+	Subject  string
+	Body     string
+	Location string
+	Start    time.Time
+	End      time.Time
 }
 
-// CreateCalendarItem
-// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/createitem-operation-calendar-item
+// CreateEvent outer layer wrapper for sending create event request
+func CreateEvent(c Client, model Create) (string, string, error) {
+
+	requiredAttendees := []Attendee{
+		{Mailbox: Mailbox{EmailAddress: model.User}},
+	}
+
+	m := CalendarItem{
+		Subject: model.Subject,
+		Body: Body{
+			BodyType: typeText,
+			Body:     model.Body,
+		},
+		Start:                model.Start,
+		End:                  model.End,
+		IsAllDayEvent:        false,
+		LegacyFreeBusyStatus: busyStatus,
+		Location:             model.Location,
+		RequiredAttendees:    []Attendees{{Attendee: requiredAttendees}},
+	}
+
+	return CreateCalendarItem(c, m)
+}
+
 func CreateCalendarItem(c Client, ci CalendarItem) (string, string, error) {
 	item := &CreateItem{
-		SendMeetingInvitations: "SendToAllAndSaveCopy",
+		SendMeetingInvitations: sendAndSave,
 		SavedItemFolderId:      SavedItemFolderId{DistinguishedFolderId{Id: "calendar"}},
 	}
 	item.Items.CalendarItem = append(item.Items.CalendarItem, ci)
@@ -158,19 +149,6 @@ func CreateCalendarItem(c Client, ci CalendarItem) (string, string, error) {
 	}
 
 	return itemID, changeKey, nil
-}
-
-func checkCreateItemResponseForErrors(bb []byte) error {
-	var soapResp createItemResponseBodyEnvelop
-	if err := xml.Unmarshal(bb, &soapResp); err != nil {
-		return err
-	}
-
-	resp := soapResp.Body.CreateItemResponse.ResponseMessages.CreateItemResponseMessage
-	if resp.ResponseClass == "Error" {
-		return errors.New(resp.MessageText)
-	}
-	return nil
 }
 
 func parseCreateItemResponse(bb []byte) (string, string, error) {

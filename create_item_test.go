@@ -2,10 +2,11 @@ package ews
 
 import (
 	"encoding/xml"
-	"github.com/stretchr/testify/assert"
 	"log"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_marshal_CalendarItem(t *testing.T) {
@@ -25,16 +26,14 @@ func Test_marshal_CalendarItem(t *testing.T) {
 		Subject: "Planning Meeting",
 		Body: Body{
 			BodyType: "Text",
-			Body:     []byte("Plan the agenda for next week's meeting."),
+			Body:     "Plan the agenda for next week's meeting.",
 		},
-		ReminderIsSet:              true,
-		ReminderMinutesBeforeStart: 60,
-		Start:                      start,
-		End:                        end,
-		IsAllDayEvent:              false,
-		LegacyFreeBusyStatus:       "Busy",
-		Location:                   "Conference Room 721",
-		RequiredAttendees:          attendees,
+
+		Start:                start,
+		End:                  end,
+		IsAllDayEvent:        false,
+		LegacyFreeBusyStatus: "Busy",
+		RequiredAttendees:    attendees,
 	}
 
 	xmlBytes, err := xml.MarshalIndent(citem, "", "  ")
@@ -48,7 +47,7 @@ func Test_marshal_CalendarItem(t *testing.T) {
   <t:ReminderIsSet>true</t:ReminderIsSet>
   <t:ReminderMinutesBeforeStart>60</t:ReminderMinutesBeforeStart>
   <t:Start>2006-11-02T14:00:00Z</t:Start>
-  <t:End>2006-11-02T15:00:00Z</t:End>
+  <t:Finish>2006-11-02T15:00:00Z</t:Finish>
   <t:IsAllDayEvent>false</t:IsAllDayEvent>
   <t:LegacyFreeBusyStatus>Busy</t:LegacyFreeBusyStatus>
   <t:Location>Conference Room 721</t:Location>

@@ -34,8 +34,6 @@ type Config struct {
 
 type Client interface {
 	SendAndReceive(body []byte) ([]byte, error)
-	GetEWSAddr() string
-	GetUsername() string
 }
 
 type client struct {
@@ -43,14 +41,6 @@ type client struct {
 	Username string
 	Password string
 	config   *Config
-}
-
-func (c *client) GetEWSAddr() string {
-	return c.EWSAddr
-}
-
-func (c *client) GetUsername() string {
-	return c.Username
 }
 
 func NewClient(ewsAddr, username, password string, config *Config) Client {
@@ -90,7 +80,6 @@ func (c *client) SendAndReceive(body []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
-	logResponse(c, resp)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, NewError(resp)
