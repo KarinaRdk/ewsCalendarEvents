@@ -34,6 +34,7 @@ type SetItemField struct {
 	FieldURI     FieldURI            `xml:"t:FieldURI"`
 	CalendarItem *UpdateCalendarItem `xml:"t:CalendarItem,omitempty"`
 	Message      *Message            `xml:"t:Message,omitempty"`
+	Subject      *Subject            `xml:"t:Subject,omitempty"`
 }
 
 type AppendToItemField struct {
@@ -49,6 +50,7 @@ type UpdateCalendarItem struct {
 	XMLName xml.Name   `xml:"t:CalendarItem"`
 	Start   *time.Time `xml:"t:Start,omitempty"`
 	End     *time.Time `xml:"t:End,omitempty"`
+	Subject string     `xml:"t:Subject,omitempty"`
 }
 
 // Update работает когда есть только body
@@ -59,6 +61,11 @@ type Message struct {
 type Body struct {
 	BodyType string `xml:"BodyType,attr"`
 	Body     string `xml:",chardata"`
+}
+
+type Subject struct {
+	XMLName xml.Name `xml:"t:Subject"`
+	Body    string   `xml:",chardata"`
 }
 
 type Update struct {
@@ -93,6 +100,12 @@ func UpdateEvent(c Client, model Update) (string, string, error) {
 						FieldURI: FieldURI{FieldURI: "calendar:End"},
 						CalendarItem: &UpdateCalendarItem{
 							End: &model.End,
+						},
+					},
+					{
+						FieldURI: FieldURI{FieldURI: "item:Subject"},
+						CalendarItem: &UpdateCalendarItem{
+							Subject: model.Subject,
 						},
 					},
 					{

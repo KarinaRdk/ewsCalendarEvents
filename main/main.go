@@ -14,8 +14,8 @@ func main() {
 	//  This is how a client might be initialised:
 	c := ews.NewClient(
 		"https://mail.corp.rwb.ru/EWS/Exchange.asmx",
-		"*",
-		"*",
+		"rwb\\NN_0ki",
+		"90019767711917Lf*",
 		&ews.Config{Dump: true, NTLM: false},
 	)
 	var itemID, changeID string
@@ -50,14 +50,14 @@ func createEvent(c ews.Client) (string, string, error) {
 // a subsequent update or deletion of the event require the most recent change ID. UpdateEvent allows to change
 // subject, body, and time of the event
 func updateEvent(client ews.Client) (string, string, error) {
-	start, _ := time.Parse(layout, "2025-04-25T09:01:00.000Z") // создается на 3 часа позже
-	finish, _ := time.Parse(layout, "2025-04-25T09:10:00.000Z")
+	start, _ := time.Parse(layout, "2025-04-25T10:01:00.000Z") // создается на 3 часа позже
+	finish, _ := time.Parse(layout, "2025-04-25T10:10:00.000Z")
 
 	model := ews.Update{
 		ItemID:    "AAMkADk0ZDcxYmQxLWEwODMtNDE5Ny1hOWQ5LTdiZjdmZDM0YWRlYgBGAAAAAABvD3r+tuTDR7aREjHyaftxBwBD5SlB15ajRa+MhxxWrQnNAAAAAAENAABD5SlB15ajRa+MhxxWrQnNAABGKHwVAAA=",
-		ChangeKey: "DwAAABYAAABD5SlB15ajRa+MhxxWrQnNAABGKKmV",
+		ChangeKey: "DwAAABYAAABD5SlB15ajRa+MhxxWrQnNAABGKKmz",
 		Subject:   "release KEEPER",
-		Body:      "Updated body",
+		Body:      "Updated again body",
 		Start:     AdjustToExchangeTimezone(start, 3),
 		End:       AdjustToExchangeTimezone(finish, 3),
 	}
