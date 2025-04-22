@@ -1,26 +1,27 @@
 package ewsutil
 
 import (
-	"github.com/mhewedy/ews"
 	"time"
+
+	"github.com/mhewedy/ews"
 )
 
 func CreateHTMLEvent(
 	c ews.Client, to, optional []string, subject, body, location string, from time.Time, duration time.Duration,
-) error {
+) (string, string, error) {
 	return createEvent(c, to, optional, subject, body, location, "HTML", from, duration)
 }
 
 // CreateEvent helper method to send Message
 func CreateEvent(
 	c ews.Client, to, optional []string, subject, body, location string, from time.Time, duration time.Duration,
-) error {
+) (string, string, error) {
 	return createEvent(c, to, optional, subject, body, location, "Text", from, duration)
 }
 
 func createEvent(
 	c ews.Client, to, optional []string, subject, body, location, bodyType string, from time.Time, duration time.Duration,
-) error {
+) (string, string, error) {
 
 	requiredAttendees := make([]ews.Attendee, len(to))
 	for i, tt := range to {
