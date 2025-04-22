@@ -2,8 +2,9 @@ package ews
 
 import (
 	"encoding/xml"
-	"errors"
 	"time"
+
+	"github.com/mhewedy/ews/response"
 )
 
 const (
@@ -29,8 +30,6 @@ type SavedItemFolderId struct {
 	DistinguishedFolderId DistinguishedFolderId `xml:"t:DistinguishedFolderId"`
 }
 
-// List of values:
-// https://docs.microsoft.com/en-us/exchange/client-developer/web-service-reference/distinguishedfolderid
 type DistinguishedFolderId struct {
 	Id string `xml:"Id,attr"`
 }
@@ -56,41 +55,6 @@ type Attendee struct {
 
 type Attendees struct {
 	Attendee []Attendee `xml:"t:Attendee"`
-}
-type createItemResponseBodyEnvelop struct {
-	XMLName xml.Name                      `xml:"Envelope"`
-	Body    createItemResponseBodyContent `xml:"Body"`
-}
-
-type createItemResponseBodyContent struct {
-	CreateItemResponse createItemResponse `xml:"CreateItemResponse"`
-}
-
-type createItemResponse struct {
-	ResponseMessages createItemResponseMessages `xml:"ResponseMessages"`
-}
-
-type createItemResponseMessages struct {
-	CreateItemResponseMessage createItemResponseMessage `xml:"CreateItemResponseMessage"`
-}
-
-type createItemResponseMessage struct {
-	ResponseClass string `xml:"ResponseClass,attr"`
-	MessageText   string `xml:"MessageText"`
-	Items         items  `xml:"Items"`
-}
-
-type items struct {
-	CalendarItem []calendarItemResponse `xml:"CalendarItem"`
-}
-
-type calendarItemResponse struct {
-	ItemId ItemId `xml:"ItemId"`
-}
-
-type ItemId struct {
-	Id        string `xml:"Id,attr"`
-	ChangeKey string `xml:"ChangeKey,attr"`
 }
 
 type Create struct {
@@ -143,29 +107,10 @@ func CreateCalendarItem(c Client, ci CalendarItem) (string, string, error) {
 		return "", "", err
 	}
 
-	itemID, changeKey, err := parseCreateItemResponse(bb)
+	itemID, changeKey, err := response.ParseCreateResponse(bb)
 	if err != nil {
 		return "", "", err
 	}
 
 	return itemID, changeKey, nil
-}
-
-func parseCreateItemResponse(bb []byte) (string, string, error) {
-	var soapResp createItemResponseBodyEnvelop
-	if err := xml.Unmarshal(bb, &soapResp); err != nil {
-		return "", "", err
-	}
-
-	resp := soapResp.Body.CreateItemResponse.ResponseMessages.CreateItemResponseMessage
-	if resp.ResponseClass == "Error" {
-		return "", "", errors.New(resp.MessageText)
-	}
-
-	if len(resp.Items.CalendarItem) == 0 {
-		return "", "", errors.New("no CalendarItem returned")
-	}
-
-	item := resp.Items.CalendarItem[0]
-	return item.ItemId.Id, item.ItemId.ChangeKey, nil
 }

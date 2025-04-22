@@ -2,7 +2,8 @@ package ews
 
 import (
 	"encoding/xml"
-	"errors"
+
+	"github.com/mhewedy/ews/response"
 )
 
 type DeleteItem struct {
@@ -13,22 +14,6 @@ type DeleteItem struct {
 	AffectedTaskOccurrences  string   `xml:"AffectedTaskOccurrences,attr"`
 	PerformReminderAction    bool     `xml:"PerformReminderAction,attr"`
 	ItemIds                  []ItemId `xml:"m:ItemIds>t:ItemId"`
-}
-type deleteItemResponseBodyEnvelop struct {
-	XMLName xml.Name                   `xml:"Envelope"`
-	Body    deleteItemResponseBodyBody `xml:"Body"`
-}
-
-type deleteItemResponseBodyBody struct {
-	DeleteItemResponse deleteItemResponse `xml:"DeleteItemResponse"`
-}
-
-type deleteItemResponse struct {
-	ResponseMessages deleteItemResponseMessages `xml:"ResponseMessages"`
-}
-
-type deleteItemResponseMessages struct {
-	DeleteItemResponseMessage responseMessage `xml:"DeleteItemResponseMessage"`
 }
 
 func DeleteEvent(c Client, itemID, changeKey string) error {
@@ -56,18 +41,5 @@ func DeleteEvent(c Client, itemID, changeKey string) error {
 		return err
 	}
 
-	return checkDeleteItemResponseForErrors(resp)
-}
-
-func checkDeleteItemResponseForErrors(bb []byte) error {
-	var soapResp deleteItemResponseBodyEnvelop
-	if err := xml.Unmarshal(bb, &soapResp); err != nil {
-		return err
-	}
-
-	resp := soapResp.Body.DeleteItemResponse.ResponseMessages.DeleteItemResponseMessage
-	if resp.ResponseClass == "Error" {
-		return errors.New(resp.MessageText)
-	}
-	return nil
+	return response.CheckDeleteItemResponseForErrors(resp)
 }

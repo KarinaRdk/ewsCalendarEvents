@@ -2,8 +2,9 @@ package ews
 
 import (
 	"encoding/xml"
-	"errors"
 	"time"
+
+	"github.com/mhewedy/ews/response"
 )
 
 type UpdateItem struct {
@@ -15,9 +16,9 @@ type UpdateItem struct {
 	ItemChanges                           []ItemChange `xml:"m:ItemChanges>t:ItemChange"`
 }
 
-type responseMessage struct {
-	ResponseClass string `xml:"ResponseClass,attr"`
-	MessageText   string `xml:"MessageText"`
+type ItemId struct {
+	Id        string `xml:"Id,attr"`
+	ChangeKey string `xml:"ChangeKey,attr"`
 }
 
 type ItemChange struct {
@@ -31,10 +32,10 @@ type ItemUpdate struct {
 }
 
 type SetItemField struct {
-	FieldURI     FieldURI            `xml:"t:FieldURI"`
-	CalendarItem *UpdateCalendarItem `xml:"t:CalendarItem,omitempty"`
-	Message      *Message            `xml:"t:Message,omitempty"`
-	Subject      *Subject            `xml:"t:Subject,omitempty"`
+	FieldURI     FieldURI             `xml:"t:FieldURI"`
+	CalendarItem *UpdatedCalendarItem `xml:"t:CalendarItem,omitempty"`
+	Message      *Message             `xml:"t:Message,omitempty"`
+	Subject      *Subject             `xml:"t:Subject,omitempty"`
 }
 
 type AppendToItemField struct {
@@ -46,14 +47,13 @@ type FieldURI struct {
 	FieldURI string `xml:"FieldURI,attr"`
 }
 
-type UpdateCalendarItem struct {
+type UpdatedCalendarItem struct {
 	XMLName xml.Name   `xml:"t:CalendarItem"`
 	Start   *time.Time `xml:"t:Start,omitempty"`
 	End     *time.Time `xml:"t:End,omitempty"`
 	Subject string     `xml:"t:Subject,omitempty"`
 }
 
-// Update работает когда есть только body
 type Message struct {
 	Body Body `xml:"t:Body"`
 }
@@ -78,7 +78,7 @@ type Update struct {
 }
 
 func UpdateEvent(c Client, model Update) (string, string, error) {
-	update := &UpdateItem{
+	update := UpdateItem{
 		Xmlns:                                 "http://schemas.microsoft.com/exchange/services/2006/messages",
 		MessageDisposition:                    "SaveOnly",
 		ConflictResolution:                    "AutoResolve",
@@ -92,19 +92,19 @@ func UpdateEvent(c Client, model Update) (string, string, error) {
 				Updates: []SetItemField{
 					{
 						FieldURI: FieldURI{FieldURI: "calendar:Start"},
-						CalendarItem: &UpdateCalendarItem{
+						CalendarItem: &UpdatedCalendarItem{
 							Start: &model.Start,
 						},
 					},
 					{
 						FieldURI: FieldURI{FieldURI: "calendar:End"},
-						CalendarItem: &UpdateCalendarItem{
+						CalendarItem: &UpdatedCalendarItem{
 							End: &model.End,
 						},
 					},
 					{
 						FieldURI: FieldURI{FieldURI: "item:Subject"},
-						CalendarItem: &UpdateCalendarItem{
+						CalendarItem: &UpdatedCalendarItem{
 							Subject: model.Subject,
 						},
 					},
@@ -121,8 +121,11 @@ func UpdateEvent(c Client, model Update) (string, string, error) {
 			},
 		},
 	}
+	return UpdateCalendarItem(c, update)
+}
 
-	xmlBytes, err := xml.MarshalIndent(update, "", "  ")
+func UpdateCalendarItem(c Client, i UpdateItem) (string, string, error) {
+	xmlBytes, err := xml.MarshalIndent(&i, "", "  ")
 	if err != nil {
 		return "", "", err
 	}
@@ -132,39 +135,5 @@ func UpdateEvent(c Client, model Update) (string, string, error) {
 		return "", "", err
 	}
 
-	return parseUpdateItemResponse(resp)
-}
-
-func parseUpdateItemResponse(resp []byte) (string, string, error) {
-	var soapResp struct {
-		Body struct {
-			UpdateItemResponse struct {
-				ResponseMessages struct {
-					ResponseMessage struct {
-						ResponseClass string `xml:"ResponseClass,attr"`
-						MessageText   string `xml:"MessageText"`
-						Items         struct {
-							CalendarItem []calendarItemResponse `xml:"CalendarItem"`
-						} `xml:"Items"`
-					} `xml:"UpdateItemResponseMessage"`
-				} `xml:"ResponseMessages"`
-			} `xml:"UpdateItemResponse"`
-		} `xml:"Body"`
-	}
-
-	if err := xml.Unmarshal(resp, &soapResp); err != nil {
-		return "", "", err
-	}
-
-	r := soapResp.Body.UpdateItemResponse.ResponseMessages.ResponseMessage
-	if r.ResponseClass == "Error" {
-		return "", "", errors.New(r.MessageText)
-	}
-
-	if len(r.Items.CalendarItem) == 0 {
-		return "", "", errors.New("no CalendarItem returned")
-	}
-
-	item := r.Items.CalendarItem[0]
-	return item.ItemId.Id, item.ItemId.ChangeKey, nil
+	return response.ParseUpdateResponse(resp)
 }

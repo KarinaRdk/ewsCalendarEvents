@@ -63,7 +63,6 @@ func (c *client) SendAndReceive(body []byte) ([]byte, error) {
 		return nil, err
 	}
 	defer req.Body.Close()
-	logRequest(c, req)
 
 	req.SetBasicAuth(c.Username, c.Password)
 	req.Header.Set("Content-Type", "text/xml")
